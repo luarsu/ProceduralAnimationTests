@@ -38,7 +38,6 @@ public class ProceduralLeg : MonoBehaviour
     void Start()
     {
         movementCurve = new BezierCurve();
-        
         //Get which is the original length of the limb
         maxDistance = Vector3.Distance(p0.transform.position,  p2.transform.position);
         //Set the initial prevPos
@@ -60,6 +59,12 @@ public class ProceduralLeg : MonoBehaviour
         UpdateCurvePoints();
         //Move the end point of the limb if necessary
         targetPoint = DecidePointToMove();
+
+        //Assign the points for the bezier curve of the movement. Still have to work in this and write in in another function.
+        Vector3 directionBezierMovement = targetPoint - p2.transform.position;
+        Vector3 p1Height = Vector3.Cross(directionBezierMovement, p2.transform.right).normalized;
+        directionBezierMovement += p1Height * maxDistance * kneeDistance;
+        AssignBezierPoints(p2.transform.position, directionBezierMovement, targetPoint);
     }
 
     //Get point from a cuadratic bezier curve
