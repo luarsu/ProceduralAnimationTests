@@ -15,6 +15,9 @@ public class BezierCurve : MonoBehaviour
     //Max length of the limb, or max distance to which the end of the limb can be of the beginning
     public float maxDistance;
 
+    //Layer mask for the raycast of get point
+    public LayerMask layerM;
+
     //Previous position of the end limb (p2) to make sure that is clamped to the latest position where it didnt surpase the max distance 
     private Vector3 prevPos;
 
@@ -23,6 +26,8 @@ public class BezierCurve : MonoBehaviour
 
     //Current distance between p0 and p2
     private float currentDistance;
+
+    private RaycastHit[] raycastPoints;
 
     void Start()
     {
@@ -38,8 +43,10 @@ public class BezierCurve : MonoBehaviour
     {
         //Calculate the current distance
         currentDistance = Vector3.Distance(p0.transform.position, p2.transform.position);
-        //Update the position of the mmebers of the limb (or points)
+        //Update the position of the points that define the curve and the middle (knee) point.
         UpdateCurvePoints();
+        //Move the end point of the limb if necessary
+        DecidePointToMove();
     }
 
     //Get point from a cuadratic bezier curve
@@ -68,15 +75,19 @@ public class BezierCurve : MonoBehaviour
         points[2] = transform.InverseTransformPoint(p2.transform.position);
 
         //The middle point has to match with the middle of the curve (always maintain the same distance from both points)
-        calcMiddlePointHeight();
+        //As its like a knee and its supposed to maintain more or less the same distance from the other parts of the limb, when the two end points get closer the knee goes up
+        //We calculate that height of the knee in the following method. 
+        //Basically we calculate the knee (p1) position.
+        CalcMiddlePointHeight();
+
         //Change to the next instruction to use the curve and not the actual curve point (p1)
         p1.transform.position = GetPoint(kneeDistance);
 
-       Debug.Log(Vector3.Distance(points[0], transform.InverseTransformPoint(p1.transform.position)) + Vector3.Distance(points[2], transform.InverseTransformPoint(p1.transform.position)));
+       //Debug.Log(Vector3.Distance(points[0], transform.InverseTransformPoint(p1.transform.position)) + Vector3.Distance(points[2], transform.InverseTransformPoint(p1.transform.position)));
     }
 
     //Method to calculate the middle point position
-    public void calcMiddlePointHeight()
+    public void CalcMiddlePointHeight()
     {
         //if it's at max distance, the knee is just in the middle, fully extended
         if (currentDistance >= maxDistance)
@@ -85,12 +96,11 @@ public class BezierCurve : MonoBehaviour
         }
         else
         {
-            //this is equal to height (C side of the right triangle (triangulo rectangulo) is qual to the perimeter - a (base of the triangle, equal to distance from p0 to middle distance from p2) - b (hipotenusa, that remains constant in length as represents the actual half limb))
-            //Debug.Log("Current distance = " + currentDistance);
-            //float height = (maxDistance * kneeDistance * 2) - (currentDistance * kneeDistance) - (maxDistance * kneeDistance);
+            //The height is equal to the difference between the maximum extension of the leg and the minimum
             float height = maxDistance - currentDistance;
 
-            calcKneeDirection();
+            //Calc the vector direction in which the height will be applied
+            CalcKneeDirection();
 
             //The position of the knee is in that height. Calculate middle position between p0 and p2 and hen add height in the forward vector.
             Vector3 finalPos = Vector3.Lerp(p0.transform.position, p2.transform.position, kneeDistance) + kneeDirection.normalized * height;
@@ -99,23 +109,27 @@ public class BezierCurve : MonoBehaviour
             //Debug.Log("Pos vector = " + finalPos);
             points[1] = transform.InverseTransformPoint(finalPos);
         }
-
-        
-
     }
 
     //Method to calculate the direction vector in which the height of the triangle will be applied 
-    public Vector3 calcKneeDirection()
+    public Vector3 CalcKneeDirection()
     {
         //First calculate the angle in which the vector formed by the begining and end of the limb form and the original one
         //calculate current limb angle
         Vector3 currentAngle = (p2.transform.position - p0.transform.position).normalized;
 
-        //cross product between the current direection of the leg and the right vector of p1
+        //cross product between the current direection of the leg and the right vector of p1. Gives a perp vector to the vector formed by the begining and end limb points (p0 and 02)
         kneeDirection = Vector3.Cross(currentAngle, p1.transform.right);
 
         return kneeDirection;
 
+    }
+
+    public void DecidePointToMove()
+    {
+        Debug.Log(Vector3.Distance(points[0], points[2]));
+        raycastPoints = Physics.SphereCastAll(transform.TransformPoint(points[0]), maxDistance / 2, -p0.transform.up, maxDistance / 2, layerM, QueryTriggerInteraction.Ignore);
+        
     }
 
     //Draw the debug gizmos for direction vectors
