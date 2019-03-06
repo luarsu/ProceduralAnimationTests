@@ -7,6 +7,10 @@ public class ProceduralLeg : MonoBehaviour
     //Points that represent end, begining and middle point of the limb
     public Vector3[] points;
     public GameObject p0, p1, p2;
+    public float movementSpeed;
+
+    //bool that indicates if the leg is moving or stationary
+    public bool isMoving;
 
     //Float that represents the percentage between the end and begining of the lemb where the middle point (knee) will be situated
     [Range(0.0f,1.0f)]
@@ -14,6 +18,9 @@ public class ProceduralLeg : MonoBehaviour
 
     //Max length of the limb, or max distance to which the end of the limb can be of the beginning
     public float maxDistance;
+
+    //max height of the feet when it performs the step movement
+    public float stepHeight;
 
     //Layer mask for the raycast of get point
     public LayerMask layerM;
@@ -27,17 +34,21 @@ public class ProceduralLeg : MonoBehaviour
     //Current distance between p0 and p2
     private float currentDistance;
 
+    //float to indicate the lerp value for the leg movement
+    private float lerp = 0; 
+
+    //raycast to detect where to move
     private RaycastHit[] raycastPoints;
 
     private Vector3 targetPoint;
 
     private Vector3 lookTargetDirection;
 
-    private BezierCurve movementCurve;
+    //bezier curve that defines the movement of the leg
+    public BezierCurve movementCurve;
 
     void Start()
     {
-        movementCurve = new BezierCurve();
         //Get which is the original length of the limb
         maxDistance = Vector3.Distance(p0.transform.position,  p2.transform.position);
         //Set the initial prevPos
@@ -48,6 +59,8 @@ public class ProceduralLeg : MonoBehaviour
         //Calculate the direction vector that the look for next point raycast will have (This direction will rotate based on the character direction)
         //lookTargetDirection = new Vector3(p0.transform.position.x, p0.transform.position.y - maxDistance, p0.transform.position.z + (maxDistance * 0.4f)) - p0.transform.position;
         lookTargetDirection = (new Vector3(p0.transform.position.x, p0.transform.position.y - maxDistance, p0.transform.position.z) + (p0.transform.forward * (maxDistance * 0.4f))) - p0.transform.position;
+
+        UpdateMovementCurvePoints();
     }
 
     void Update()
@@ -56,7 +69,13 @@ public class ProceduralLeg : MonoBehaviour
         //Calculate the current distance
         currentDistance = Vector3.Distance(p0.transform.position, p2.transform.position);
         //Update the position of the points that define the curve and the middle (knee) point.
-        UpdateCurvePoints();
+        UpdateLegCurvePoints();
+
+        if (isMoving)
+        {
+            MoveLegToTarget();
+        }
+        /*
         //Move the end point of the limb if necessary
         targetPoint = DecidePointToMove();
 
@@ -64,7 +83,8 @@ public class ProceduralLeg : MonoBehaviour
         Vector3 directionBezierMovement = targetPoint - p2.transform.position;
         Vector3 p1Height = Vector3.Cross(directionBezierMovement, p2.transform.right).normalized;
         directionBezierMovement += p1Height * maxDistance * kneeDistance;
-        AssignBezierPoints(p2.transform.position, directionBezierMovement, targetPoint);
+        //AssignBezierPoints(p2.transform.position, directionBezierMovement, targetPoint);
+        */
     }
 
     //Get point from a cuadratic bezier curve
@@ -74,8 +94,55 @@ public class ProceduralLeg : MonoBehaviour
         
     }
 
+    //moves the end leg (feet) to the point indicated by the movement bezier curve
+    void MoveLegToTarget()
+    {
+        p2.transform.position = movementCurve.GetPoint(lerp);
+
+
+        if (lerp >= 1)
+        {
+            isMoving = false;
+        }
+        else
+        {
+            //update the lerp
+            lerp += movementSpeed * Time.deltaTime;
+        }
+    }
+
+
+    void UpdateMovementCurvePoints()
+    {
+        //indicate the leg that it should move/is moving
+        isMoving = true;
+        
+        //Get the points for the movement bezier curve
+        movementCurve.points[0] = p2.transform.position;
+        movementCurve.points[2] = DecidePointToMove();
+
+        //Make sure that a point to move is found
+        if (movementCurve.points[2] == Vector3.zero)
+        {
+            Debug.Log("No point found");
+        }
+        if (Vector3.Distance(movementCurve.points[0], movementCurve.points[2]) > maxDistance)
+        {
+            Debug.Log("Point further than it should");
+        }
+
+        //Add a step max height?
+
+        Vector3 midPointDirection = (p2.transform.position - p0.transform.position).normalized;
+        midPointDirection = Vector3.Cross(midPointDirection, transform.right);
+
+        //movementCurve.points[1] = movementCurve.GetPoint(0.5f); //+ (Vector3.up * stepHeight);
+        //Get the midpoint between the start and the end
+        movementCurve.points[1] = ((movementCurve.points[2] + movementCurve.points[0]) / 2) + (Vector3.up * stepHeight);
+    }
+
     //Method that is in charge that both the points from the curve and the actual game objects that represent them are in the right place.
-    public void UpdateCurvePoints()
+    public void UpdateLegCurvePoints()
     {
         //make sure that the end part of the limb doesnt go further than the max distance. We clamp it to the max distance
         if ( currentDistance > maxDistance + 0.1f)
@@ -193,11 +260,4 @@ public class ProceduralLeg : MonoBehaviour
         Gizmos.DrawRay(DecidePointToMove(), (DecidePointToMove() + p0.transform.up));
     }
 
-    public void AssignBezierPoints(Vector3 p0, Vector3 p1, Vector3 p2)
-    {
-        movementCurve.points[0] = p0;
-        movementCurve.points[1] = p1;
-        movementCurve.points[2] = p2;
-
-    }
 }
