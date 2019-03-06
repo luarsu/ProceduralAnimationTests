@@ -9,6 +9,9 @@ public class ProceduralLeg : MonoBehaviour
     public GameObject p0, p1, p2;
     public float movementSpeed;
 
+    [SerializeField]
+    LegsController legsContr;
+
     //bool that indicates if the leg is moving or stationary
     public bool isMoving;
 
@@ -60,7 +63,6 @@ public class ProceduralLeg : MonoBehaviour
         //lookTargetDirection = new Vector3(p0.transform.position.x, p0.transform.position.y - maxDistance, p0.transform.position.z + (maxDistance * 0.4f)) - p0.transform.position;
         lookTargetDirection = (new Vector3(p0.transform.position.x, p0.transform.position.y - maxDistance, p0.transform.position.z) + (p0.transform.forward * (maxDistance * 0.4f))) - p0.transform.position;
 
-        UpdateMovementCurvePoints();
     }
 
     void Update()
@@ -103,6 +105,7 @@ public class ProceduralLeg : MonoBehaviour
         if (lerp >= 1)
         {
             isMoving = false;
+            legsContr.numberOfLegsMoving--;
         }
         else
         {
@@ -112,7 +115,7 @@ public class ProceduralLeg : MonoBehaviour
     }
 
 
-    void UpdateMovementCurvePoints()
+    public void UpdateMovementCurvePoints()
     {
         //indicate the leg that it should move/is moving
         isMoving = true;
@@ -246,6 +249,19 @@ public class ProceduralLeg : MonoBehaviour
         }
 
     */
+    }
+    //returns true if the end o the leg is too far from the leg joint with the body
+    public bool ShouldMoveLeg()
+    {
+        //if the distance is almost the max one, return true
+        if (Vector3.Distance(p0.transform.position, p2.transform.position) >= (maxDistance * 0.9))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     //Draw the debug gizmos for direction vectors
